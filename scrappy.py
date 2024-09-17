@@ -30,10 +30,11 @@ def extract_highlights_from_html(html_file):
         highlight_header = block.find(id="annotationHighlightHeader")
         if highlight_header:
             highlight_header_text = highlight_header.get_text(strip=True)
-            # Remove a parte "Yellow highlight | Location: " e extrai apenas o número
-            match = re.search(r'Location:\s*(\d+)', highlight_header_text)
+            # Remove a parte "Yellow highlight | Location: " e extrai o número da localização, incluindo vírgulas
+            match = re.search(r'Location:\s*([\d,]+)', highlight_header_text)
             if match:
-                highlight_header_text = match.group(1)
+                # Remove as vírgulas do número da localização
+                highlight_header_text = match.group(1).replace(',', '')
             else:
                 continue  # Se não encontrar a localização, ignora este bloco
         else:
