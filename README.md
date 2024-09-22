@@ -1,16 +1,18 @@
-# Kindle highlights extractor
+# Kindle Highlights Extractor
 
-This script extracts highlights from a Kindle-generated HTML file and outputs them as a JSON file. It uses BeautifulSoup to parse the HTML and extract relevant data.
+This script extracts highlights from the Kindle Notebook web application and outputs them as a JSON file. It uses Selenium to navigate the web application and BeautifulSoup to parse the HTML and extract relevant data.
 
 ## Features
 
-- Extracts highlights from Kindle HTML files
+- Extracts highlights from the Kindle Notebook web application
 - Outputs highlights in JSON format
-- Supports extracting location and content of highlights
+- Supports extracting location or page number and content of highlights
+- User-friendly input for book details (title, author, cover URL, and description)
 
 ## Requirements
 
 - Python 3.x
+- `selenium`
 - `beautifulsoup4`
 - `lxml` or `html.parser` (BeautifulSoup parser)
 - `re` (regular expression module, included in Python standard library)
@@ -20,38 +22,44 @@ This script extracts highlights from a Kindle-generated HTML file and outputs th
 You can install the required Python packages using pip:
 
 ```bash
-pip install beautifulsoup4
+pip install selenium beautifulsoup4
 ```
+
+Additionally, make sure to download the appropriate ChromeDriver for your version of Chrome and place it in a directory accessible by your PATH.
 
 ## Usage
-1. **Prepare your Kindle HTML file:** Ensure you have a Kindle-generated HTML file with highlights. 
 
-2. **Run the script:** Execute the script using Python. It will prompt you for the path to the HTML file and book details.
+1. **Login to Kindle Notebook:** Open your browser and log in to the Kindle Notebook web application at [read.amazon.com/notebook](https://read.amazon.com/notebook).
+
+2. **Run the script:** Execute the script using Python. It will prompt you to select a book and provide details.
 ```bash
-python script.py
+   python scrappy.py
 ```
 
-3. **Provide details:** When prompted, provide the following details:
-- Path to the Kindle HTML file
-- Book name
+3. **Select a book:** Click on the book you wish to export highlights from and then press Enter in the terminal.
+
+4. **Provide details:** When prompted, enter the following details:
+- Book title
 - Book author
 - URL of the book cover (optional)
 - Book description
 
-4. **Check the output:** The script will generate a JSON file named `result.json` containing the extracted highlights and book details.
+5. **Check the output:** The script will generate a JSON file in the `/exported` folder containing the extracted highlights and book details.
 
 ## Example
 ```plaintext
-Please enter the path to the HTML file: /path/to/highlights.html
-Please enter the name of the book: Example Book
+Click on the book you wish to export the highlights from and press Enter to continue...
+Press Enter after selecting a book...
+Please enter the title of the book: Example Book
 Please enter the author of the book: Example Author
 Please enter the URL of the book cover: http://example.com/cover.jpg
 Please enter a description of the book: This is an example book.
 ```
 
-Output in `result.json`:
+Output in `/exported/example_book.json`:
 ```json
 {
+  "id": "some-uuid",
   "book": {
     "name": "Example Book",
     "author": "Example Author",
