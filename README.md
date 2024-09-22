@@ -33,7 +33,7 @@ Additionally, make sure to download the appropriate ChromeDriver for your versio
 
 2. **Run the script:** Execute the script using Python. It will prompt you to select a book and provide details.
 ```bash
-   python scrappy.py
+  python scrappy.py
 ```
 
 3. **Select a book:** Click on the book you wish to export highlights from and then press Enter in the terminal.
