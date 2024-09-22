@@ -1,23 +1,38 @@
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import json
 import re
-import os
 import uuid
+import os
 
-def extract_highlights_from_html(html_file):
-    """
-    Recebe um arquivo HTML gerado pelo Kindle e extrai os destaques em formato JSON.
+# Função para configurar e acessar a página do Amazon Notebook
+def setup_webdriver():
+    # Configura o Chrome WebDriver (substitua o caminho pelo local do seu chromedriver)
+    service = Service('./chromedriver/chromedriver')
+    options = webdriver.ChromeOptions()
+    # options.add_argument('--headless')  # Remova essa linha para ver o navegador abrindo
+    driver = webdriver.Chrome(service=service, options=options)
 
-    :param html_file: Caminho do arquivo HTML gerado pelo Kindle
-    :return: Uma lista de objetos com as chaves "id", "page"/"location" e "content", representando os destaques
-    """
+    # Acessa o site do Amazon Notebook
+    driver.get("https://read.amazon.com/notebook")
 
-    # Lê o arquivo HTML
-    with open(html_file, 'r', encoding='utf-8') as file:
-        content = file.read()
+    # Dê tempo para o usuário fazer login manualmente
+    print("Por favor, faça login na sua conta da Amazon.")
+    input("Pressione Enter depois de fazer login...")
+
+    return driver
+
+# Função para extrair os destaques de um livro após o usuário clicar nele
+def extract_highlights_from_html_content(driver):
+    # Recarrega o HTML da página atual para garantir que estamos lendo o conteúdo atualizado
+    page_source = driver.page_source
 
     # Parseia o HTML com BeautifulSoup
-    soup = BeautifulSoup(content, 'html.parser')
+    soup = BeautifulSoup(page_source, 'html.parser')
 
     # Lista para armazenar os destaques
     highlights_data = []
@@ -26,42 +41,29 @@ def extract_highlights_from_html(html_file):
     highlight_blocks = soup.find_all('div', class_='a-column a-span10 kp-notebook-row-separator')
 
     for block in highlight_blocks:
-        # Extrai o texto do elemento com id="annotationHighlightHeader" (que será nossa "location" ou "page")
         highlight_header = block.find(id="annotationHighlightHeader")
         if highlight_header:
             highlight_header_text = highlight_header.get_text(strip=True)
-            
-            # Tenta encontrar "Location"
             location_match = re.search(r'Location:\s*([\d,]+)', highlight_header_text)
-            
-            # Tenta encontrar "Page"
             page_match = re.search(r'Page:\s*([\d,]+)', highlight_header_text)
-            
-            # Define se vamos usar 'location' ou 'page' baseado no que foi encontrado
+
             if location_match:
-                # Remove as vírgulas do número da localização
                 header_type = 'location'
                 header_value = location_match.group(1).replace(',', '')
             elif page_match:
-                # Remove as vírgulas do número da página
                 header_type = 'page'
                 header_value = page_match.group(1).replace(',', '')
             else:
-                continue  # Se não encontrar nem 'Location' nem 'Page', ignora este bloco
-        else:
-            continue  # Se não encontrar o header, ignora este bloco
+                continue
 
-        # Extrai o texto do elemento com id="highlight" (que será nosso "content")
         highlight = block.find(id="highlight")
         if highlight:
             highlight_text = highlight.get_text(strip=True)
         else:
-            continue  # Se não encontrar o highlight, ignora este bloco
+            continue
 
-        # Gera um UUID para cada destaque
         highlight_id = str(uuid.uuid4())
 
-        # Adiciona o resultado ao array de objetos com as chaves alteradas e o id
         highlights_data.append({
             "id": highlight_id,
             header_type: header_value,
@@ -70,51 +72,66 @@ def extract_highlights_from_html(html_file):
 
     return highlights_data
 
-def main():
-    """
-    Função principal do script.
-
-    Pergunta ao usuário o caminho do arquivo HTML e os detalhes do livro,
-    extrai os destaques do arquivo HTML, monta o dicionário final com a
-    estrutura solicitada, converte para JSON e salva em um arquivo.
-    """
-    
-    # Pergunta o caminho do arquivo HTML
-    html_file = input("Por favor, insira o caminho do arquivo HTML: ")
-
-    # Pergunta os detalhes do livro
-    book_name = input("Por favor, insira o nome do livro: ")
-    book_author = input("Por favor, insira o autor do livro: ")
-    book_cover = input("Por favor, insira a URL da capa do livro: ")
-    book_description = input("Por favor, insira uma descrição do livro: ")
+# Função para coletar as informações manuais e gerar o arquivo JSON
+def collect_manual_info_and_generate_json(highlights):
+    # Solicita que o usuário insira os dados do livro manualmente
+    title = input("Digite o título do livro: ")
+    author = input("Digite o autor do livro: ")
+    cover = input("Digite a URL da capa do livro: ")
+    description = input("Digite a descrição do livro: ")
 
     # Gera um UUID para o livro
     book_id = str(uuid.uuid4())
 
-    # Extrai os destaques do arquivo HTML
-    highlights = extract_highlights_from_html(html_file)
-
-    # Monta o dicionário final com a estrutura solicitada
-    result = {
-        "id": book_id,  # Adiciona o id do livro
+    # Monta o dicionário com as informações do livro e seus destaques
+    book_data = {
+        "id": book_id,
         "book": {
-            "name": book_name,
-            "author": book_author,
-            "cover": book_cover,
-            "description": book_description
+            "name": title,
+            "author": author,
+            "cover": cover,
+            "description": description
         },
         "highlights": highlights
     }
 
-    # Converte o dicionário para JSON
-    result_json = json.dumps(result, indent=2, ensure_ascii=False)
+    # Salva os dados em um arquivo JSON com o nome do livro
+    save_book_data_as_json(title, book_data)
 
-    # Salvar o resultado em um arquivo JSON
-    with open("result.json", 'w', encoding='utf-8') as json_file:
-        json_file.write(result_json)
+# Função para salvar o JSON com o nome do livro
+def save_book_data_as_json(book_title, book_data):
+    # Cria a pasta /exported se não existir
+    os.makedirs('exported', exist_ok=True)
 
-    print(f"JSON gerado com sucesso! O arquivo é result.json")
-    print(result_json)
+    # Remove caracteres não permitidos em nomes de arquivos e transforma em minúsculas
+    safe_title = re.sub(r'[^\w\s-]', '', book_title).strip().replace(' ', '_').lower()
+    file_name = f"exported/{safe_title}.json"
+
+    # Salva o JSON no arquivo
+    with open(file_name, 'w', encoding='utf-8') as json_file:
+        json.dump(book_data, json_file, indent=2, ensure_ascii=False)
+
+    print(f"JSON para o livro '{book_title}' gerado com sucesso! Arquivo: {file_name}")
+
+def main():
+    # Configura o navegador e faz login
+    driver = setup_webdriver()
+
+    # Deixe o navegador aberto para você clicar nos livros
+    print("Clique no livro que deseja exportar os destaques e pressione Enter para continuar...")
+    
+    while True:
+        input("Pressione Enter após selecionar um livro...")
+        highlights = extract_highlights_from_html_content(driver)
+        collect_manual_info_and_generate_json(highlights)
+        
+        choice = input("Deseja exportar mais um livro? (S/n): ").strip().lower()
+        # Define 's' como padrão se a entrada estiver vazia
+        if choice == '':
+            choice = 's'
+        
+        if choice != 's':
+            break
 
 if __name__ == "__main__":
     main()
