@@ -9,43 +9,43 @@ import re
 import uuid
 import os
 
-# Função para configurar e acessar a página do Amazon Notebook
+# Function to set up and access the Amazon Notebook page
 def setup_webdriver():
-    # Configura o Chrome WebDriver (substitua o caminho pelo local do seu chromedriver)
-    service = Service('./chromedriver/chromedriver')
+    # Set up Chrome WebDriver. Selenium Manager will automatically download ChromeDriver.
     options = webdriver.ChromeOptions()
-    # options.add_argument('--headless')  # Remova essa linha para ver o navegador abrindo
-    driver = webdriver.Chrome(service=service, options=options)
+    # options.add_argument('--headless')  # Remove this line to see the browser opening
+    driver = webdriver.Chrome(options=options)
 
-    # Acessa o site do Amazon Notebook
+    # Access the Amazon Notebook website
     driver.get("https://read.amazon.com/notebook")
 
-    # Dê tempo para o usuário fazer login manualmente
-    print("Por favor, faça login na sua conta da Amazon.")
-    input("Pressione Enter depois de fazer login...")
+    # Give time for the user to log in manually
+    print("Please log in to your Amazon account.")
+    input("Press Enter after logging in...")
 
     return driver
 
-# Função para extrair os destaques de um livro após o usuário clicar nele
+# Function to extract highlights from a book after the user clicks on it
 def extract_highlights_from_html_content(driver):
-    # Recarrega o HTML da página atual para garantir que estamos lendo o conteúdo atualizado
+    # Reload the current page HTML to ensure we're reading updated content
     page_source = driver.page_source
 
-    # Parseia o HTML com BeautifulSoup
+    # Parse the HTML with BeautifulSoup
     soup = BeautifulSoup(page_source, 'html.parser')
 
-    # Lista para armazenar os destaques
+    # List to store the highlights
     highlights_data = []
 
-    # Encontra todos os divs que possuem a estrutura que queremos
-    highlight_blocks = soup.find_all('div', class_='a-column a-span10 kp-notebook-row-separator')
+    # Find all divs that have the structure we want
+    highlight_blocks = soup.find_all('div', class_='a-row a-spacing-base')
 
     for block in highlight_blocks:
+        # Search for the correct header with page/location information
         highlight_header = block.find(id="annotationHighlightHeader")
         if highlight_header:
             highlight_header_text = highlight_header.get_text(strip=True)
-            location_match = re.search(r'Location:\s*([\d,]+)', highlight_header_text)
-            page_match = re.search(r'Page:\s*([\d,]+)', highlight_header_text)
+            location_match = re.search(r'Local:\s*([\d,]+)', highlight_header_text)
+            page_match = re.search(r'Página:\s*([\d,]+)', highlight_header_text)
 
             if location_match:
                 header_type = 'location'
@@ -55,7 +55,10 @@ def extract_highlights_from_html_content(driver):
                 header_value = page_match.group(1).replace(',', '')
             else:
                 continue
+        else:
+            continue
 
+        # Search for the highlight content
         highlight = block.find(id="highlight")
         if highlight:
             highlight_text = highlight.get_text(strip=True)
@@ -72,18 +75,18 @@ def extract_highlights_from_html_content(driver):
 
     return highlights_data
 
-# Função para coletar as informações manuais e gerar o arquivo JSON
+# Function to collect manual information and generate the JSON file
 def collect_manual_info_and_generate_json(highlights):
-    # Solicita que o usuário insira os dados do livro manualmente
-    title = input("Digite o título do livro: ")
-    author = input("Digite o autor do livro: ")
-    cover = input("Digite a URL da capa do livro: ")
-    description = input("Digite a descrição do livro: ")
+    # Request user to enter book data manually
+    title = input("Enter the book title: ")
+    author = input("Enter the book author: ")
+    cover = input("Enter the book cover URL: ")
+    description = input("Enter the book description: ")
 
-    # Gera um UUID para o livro
+    # Generate a UUID for the book
     book_id = str(uuid.uuid4())
 
-    # Monta o dicionário com as informações do livro e seus destaques
+    # Build the dictionary with book information and its highlights
     book_data = {
         "id": book_id,
         "book": {
@@ -95,42 +98,42 @@ def collect_manual_info_and_generate_json(highlights):
         "highlights": highlights
     }
 
-    # Salva os dados em um arquivo JSON com o nome do livro
+    # Save the data to a JSON file with the book name
     save_book_data_as_json(title, book_data)
 
-# Função para salvar o JSON com o nome do livro
+# Function to save the JSON with the book name
 def save_book_data_as_json(book_title, book_data):
-    # Cria a pasta /exported se não existir
+    # Create the /exported folder if it doesn't exist
     os.makedirs('exported', exist_ok=True)
 
-    # Remove caracteres não permitidos em nomes de arquivos e transforma em minúsculas
+    # Remove characters not allowed in file names and convert to lowercase
     safe_title = re.sub(r'[^\w\s-]', '', book_title).strip().replace(' ', '_').lower()
     file_name = f"exported/{safe_title}.json"
 
-    # Salva o JSON no arquivo
+    # Save the JSON to the file
     with open(file_name, 'w', encoding='utf-8') as json_file:
         json.dump(book_data, json_file, indent=2, ensure_ascii=False)
 
-    print(f"JSON para o livro '{book_title}' gerado com sucesso! Arquivo: {file_name}")
+    print(f"JSON for the book '{book_title}' generated successfully! File: {file_name}")
 
 def main():
-    # Configura o navegador e faz login
+    # Set up the browser and log in
     driver = setup_webdriver()
 
-    # Deixe o navegador aberto para você clicar nos livros
-    print("Clique no livro que deseja exportar os destaques e pressione Enter para continuar...")
+    # Leave the browser open for you to click on books
+    print("Click on the book you want to export highlights from and press Enter to continue...")
     
     while True:
-        input("Pressione Enter após selecionar um livro...")
+        input("Press Enter after selecting a book...")
         highlights = extract_highlights_from_html_content(driver)
         collect_manual_info_and_generate_json(highlights)
         
-        choice = input("Deseja exportar mais um livro? (S/n): ").strip().lower()
-        # Define 's' como padrão se a entrada estiver vazia
+        choice = input("Do you want to export another book? (Y/n): ").strip().lower()
+        # Set 'y' as default if the input is empty
         if choice == '':
-            choice = 's'
+            choice = 'y'
         
-        if choice != 's':
+        if choice != 'y':
             break
 
 if __name__ == "__main__":
